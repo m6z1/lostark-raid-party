@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>로아 레이드팟 짜기</title>
+<style>
+:root {
+  --bg: #0e0f13;
+  --panel: #16181f;
+  --panel2: #1d2029;
+  --border: #2a2e3a;
+  --text: #e8e6e0;
+  --muted: #8b8fa3;
+  --gold: #d9b45b;
+  --gold-dim: #a8863c;
+  --dealer: #e06c6c;
+  --support: #5cc98e;
+  --danger: #e06c6c;
+  --radius: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  min-height: 100vh;
+}
+header {
+  padding: 28px 24px 20px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #14161d 0%, var(--bg) 100%);
+}
+header h1 {
+  font-size: 26px;
+  letter-spacing: 1px;
+  color: var(--gold);
+}
+header p { color: var(--muted); margin-top: 6px; font-size: 14px; }
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 16px 80px;
+  display: grid;
+  grid-template-columns: 470px 1fr;
+  gap: 20px;
+}
+@media (max-width: 960px) { .container { grid-template-columns: 1fr; } }
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+.panel h2 {
+  font-size: 16px;
+  color: var(--gold);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.panel h2 .sub { font-size: 12px; color: var(--muted); font-weight: normal; }
+input, select, button {
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text);
+}
+input, select {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  outline: none;
+}
+input:focus, select:focus { border-color: var(--gold-dim); }
+input::placeholder { color: #5a5e70; }
+button {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--panel2);
+  border-radius: 6px;
+  padding: 8px 14px;
+  transition: all .15s;
+}
+button:hover { border-color: var(--gold-dim); color: var(--gold); }
+button.primary {
+  background: linear-gradient(180deg, #d9b45b 0%, #b8923e 100%);
+  color: #1a1508;
+  font-weight: 700;
+  border: none;
+  font-size: 16px;
+  padding: 14px;
+  width: 100%;
+  border-radius: 8px;
+}
+button.primary:hover { filter: brightness(1.1); color: #1a1508; }
+button.ghost { background: none; border: none; color: var(--muted); padding: 4px 6px; font-size: 13px; }
+button.ghost:hover { color: var(--danger); }
+.add-player-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.add-player-row input { flex: 1; }
+.player-card {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.player-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.player-name { font-weight: 700; font-size: 15px; }
+.player-name .count { color: var(--muted); font-weight: normal; font-size: 12px; margin-left: 6px; }
+.char-row {
+  display: grid;
+  grid-template-columns: 1fr 68px 76px 86px 26px;
+  gap: 6px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+.char-row input, .char-row select { padding: 6px 8px; font-size: 13px; }
+.role-badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+.role-support { background: rgba(92,201,142,.15); color: var(--support); }
+.role-dealer { background: rgba(224,108,108,.15); color: var(--dealer); }
+.raid-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+@media (max-width: 600px) { .raid-settings { grid-template-columns: 1fr; } }
+.raid-option {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.raid-option.disabled { opacity: .45; }
+.raid-option .raid-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+.raid-option .raid-sub { font-size: 12px; color: var(--muted); }
+.raid-option select { width: 100%; }
+.raid-option input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--gold); }
+.results { margin-top: 20px; display: flex; flex-direction: column; gap: 18px; }
+.raid-result {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.raid-result-head {
+  background: linear-gradient(90deg, #23262f 0%, var(--panel2) 100%);
+  padding: 12px 16px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+}
+.raid-result-head .name { font-size: 16px; font-weight: 700; color: var(--gold); }
+.raid-result-head .meta { font-size: 13px; color: var(--muted); }
+.groups { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.group {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.group.incomplete { border-style: dashed; border-color: #6b5a2e; }
+.group-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: var(--gold);
+  font-weight: 700;
+}
+.group-head .warn { color: #e0b06c; font-weight: normal; }
+.parties { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.parties.single { grid-template-columns: 1fr; }
+@media (max-width: 600px) { .parties { grid-template-columns: 1fr; } }
+.party { display: flex; flex-direction: column; gap: 4px; }
+.party-label { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+.slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.slot .pname { font-weight: 700; }
+.slot .cname { color: var(--muted); }
+.slot .nums { margin-left: auto; display: flex; gap: 8px; align-items: baseline; }
+.slot .cp { color: #7fa8d9; font-size: 12px; }
+.slot .ilvl { color: var(--gold); font-size: 12px; }
+.slot.empty { color: #5a5e70; border: 1px dashed var(--border); background: none; justify-content: center; }
+.unassigned { padding: 0 16px 14px; font-size: 13px; color: var(--muted); }
+.unassigned b { color: var(--text); }
+.empty-msg { color: var(--muted); font-size: 14px; padding: 30px 0; text-align: center; }
+.toolbar { display: flex; gap: 8px; margin-top: 14px; }
+.toolbar button { flex: 1; font-size: 13px; }
+.fetch-box { margin-bottom: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel2); }
+.fetch-box summary { cursor: pointer; padding: 10px 12px; font-size: 13px; color: var(--muted); list-style: none; }
+.fetch-box summary::before { content: '▸ '; }
+.fetch-box[open] summary::before { content: '▾ '; }
+.fetch-box summary:hover { color: var(--gold); }
+.fetch-form { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.fetch-form input { width: 100%; }
+.fetch-row { display: flex; gap: 8px; }
+.fetch-row input { flex: 1; min-width: 0; }
+.fetch-hint { font-size: 11px; color: #5a5e70; line-height: 1.5; }
+.fetch-hint a { color: var(--gold-dim); }
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.65); display: flex; align-items: center; justify-content: center; z-index: 10; }
+.modal-bg[hidden] { display: none; }
+.modal { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; width: min(540px, 92vw); max-height: 82vh; display: flex; flex-direction: column; }
+.modal h3 { color: var(--gold); font-size: 15px; margin-bottom: 12px; }
+.modal-list { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.modal-row { display: flex; align-items: center; gap: 10px; background: var(--panel2); border-radius: 6px; padding: 8px 10px; font-size: 13px; }
+.modal-row input[type=checkbox] { accent-color: var(--gold); width: 15px; height: 15px; flex-shrink: 0; }
+.modal-row .cls { color: var(--muted); font-size: 12px; }
+.modal-row .lvl { margin-left: auto; color: var(--gold); flex-shrink: 0; }
+.modal-row select { padding: 4px 6px; font-size: 12px; flex-shrink: 0; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--gold);
+  color: #1a1508;
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚔️ 로아 레이드팟 짜기</h1>
+  <p>이름 · 캐릭터 · 역할 · 아이템레벨 · 전투력만 넣으면 4막 / 종막 / 세르카 / 성당 팟을 자동으로 짜줍니다</p>
+</header>
+
+<div class="container">
+  <div class="panel">
+    <h2>멤버 & 캐릭터 <span class="sub" id="member-summary"></span></h2>
+    <div class="add-player-row">
+      <input type="text" id="new-player-name" placeholder="공대원 이름 (예: 명지)" maxlength="12">
+      <button id="add-player-btn">추가</button>
+    </div>
+    <details class="fetch-box">
+      <summary>🔍 전투정보실에서 자동 불러오기</summary>
+      <div class="fetch-form">
+        <input type="password" id="api-key" placeholder="로스트아크 오픈 API 키" autocomplete="off">
+        <div class="fetch-hint">
+          <a href="https://developer-lostark.game.onstove.com" target="_blank" rel="noopener">developer-lostark.game.onstove.com</a>에서 무료 발급 (스토브 로그인 → 클라이언트 등록).
+          키는 이 브라우저에만 저장됩니다.
+        </div>
+        <div class="fetch-row">
+          <input type="text" id="fetch-char" placeholder="대표 캐릭터명" maxlength="14">
+          <input type="text" id="fetch-player" placeholder="공대원 이름 (비우면 캐릭명)" maxlength="12">
+          <button id="fetch-btn">검색</button>
+        </div>
+      </div>
+    </details>
+    <div id="players"></div>
+    <div class="toolbar">
+      <button id="sample-btn">예시 데이터</button>
+      <button id="reset-btn">전체 초기화</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>레이드 선택 <span class="sub">난이도별 입장 아이템레벨 자동 적용</span></h2>
+    <div class="raid-settings" id="raid-settings"></div>
+    <button class="primary" id="build-btn">팟 짜기</button>
+    <div class="results" id="results">
+      <div class="empty-msg">멤버와 캐릭터를 입력한 뒤 [팟 짜기]를 눌러주세요</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-bg" hidden>
+  <div class="modal">
+    <h3 id="modal-title"></h3>
+    <div class="modal-list" id="modal-list"></div>
+    <div class="modal-actions">
+      <button id="modal-cancel">취소</button>
+      <button id="modal-ok">선택한 캐릭터 추가</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const RAIDS = [
+  { id: 'act4', name: '4막 파멸의 성채', sub: '에키드나 · 아르모체 / 8인', size: 8,
+    diffs: [ { id: 'normal', label: '노말', ilvl: 1700 }, { id: 'hard', label: '하드', ilvl: 1720 } ] },
+  { id: 'finale', name: '종막 최후의 날', sub: '카제로스 / 8인', size: 8,
+    diffs: [ { id: 'normal', label: '노말', ilvl: 1710 }, { id: 'hard', label: '하드', ilvl: 1730 }, { id: 'first', label: '더 퍼스트', ilvl: 1740 } ] },
+  { id: 'serka', name: '세르카', sub: '고통의 마녀 (그림자 레이드) / 4인', size: 4,
+    diffs: [ { id: 'normal', label: '노말', ilvl: 1710 }, { id: 'hard', label: '하드', ilvl: 1730 }, { id: 'nightmare', label: '나이트메어', ilvl: 1740 } ] },
+  { id: 'cathedral', name: '지평의 성당', sub: '어비스 던전 / 4인', size: 4,
+    diffs: [ { id: 't1', label: '1단계', ilvl: 1700 }, { id: 't2', label: '2단계', ilvl: 1720 }, { id: 't3', label: '3단계', ilvl: 1750 } ] },
+];
+
+const STORAGE_KEY = 'loa-raid-party-v1';
+let state = load();
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return defaultState();
+}
+
+function defaultState() {
+  const raids = {};
+  RAIDS.forEach(r => raids[r.id] = { enabled: true, diff: r.diffs[0].id });
+  return { players: [], raids };
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function uid() {
+  return Math.random().toString(36).slice(2, 9);
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function renderPlayers() {
+  const wrap = document.getElementById('players');
+  const totalChars = state.players.reduce((n, p) => n + p.chars.length, 0);
+  document.getElementById('member-summary').textContent =
+    state.players.length ? `${state.players.length}명 · 캐릭터 ${totalChars}개` : '';
+  wrap.innerHTML = state.players.map(p => `
+    <div class="player-card" data-pid="${p.id}">
+      <div class="player-head">
+        <span class="player-name">${esc(p.name)}<span class="count">캐릭 ${p.chars.length}</span></span>
+        <span>
+          <button class="ghost" data-act="add-char">+ 캐릭터</button>
+          <button class="ghost" data-act="del-player">삭제</button>
+        </span>
+      </div>
+      ${p.chars.map(c => `
+        <div class="char-row" data-cid="${c.id}">
+          <input type="text" value="${esc(c.name)}" placeholder="캐릭터명" data-field="name" maxlength="14">
+          <select data-field="role">
+            <option value="dealer" ${c.role === 'dealer' ? 'selected' : ''}>딜러</option>
+            <option value="support" ${c.role === 'support' ? 'selected' : ''}>서폿</option>
+          </select>
+          <input type="number" value="${c.ilvl || ''}" placeholder="아이템렙" data-field="ilvl" min="0" max="2000" step="0.01">
+          <input type="number" value="${c.cp || ''}" placeholder="전투력" data-field="cp" min="0" step="1">
+          <button class="ghost" data-act="del-char">✕</button>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function renderRaidSettings() {
+  const wrap = document.getElementById('raid-settings');
+  wrap.innerHTML = RAIDS.map(r => {
+    const s = state.raids[r.id];
+    return `
+      <div class="raid-option ${s.enabled ? '' : 'disabled'}" data-rid="${r.id}">
+        <label class="raid-title">
+          <input type="checkbox" data-field="enabled" ${s.enabled ? 'checked' : ''}>
+          ${esc(r.name)}
+        </label>
+        <span class="raid-sub">${esc(r.sub)}</span>
+        <select data-field="diff">
+          ${r.diffs.map(d => `<option value="${d.id}" ${s.diff === d.id ? 'selected' : ''}>${d.label} (${d.ilvl}+)</option>`).join('')}
+        </select>
+      </div>
+    `;
+  }).join('');
+}
+
+function eligibleChars(req) {
+  const pool = [];
+  state.players.forEach(p => {
+    p.chars.forEach(c => {
+      const ilvl = parseFloat(c.ilvl);
+      if (!isNaN(ilvl) && ilvl >= req) {
+        const cpRaw = parseFloat(c.cp);
+        const cp = isNaN(cpRaw) ? null : cpRaw;
+        pool.push({ player: p.name, pid: p.id, name: c.name || '(이름없음)', role: c.role, ilvl, cp });
+      }
+    });
+  });
+  return pool;
+}
+
+function eff(c) {
+  return c.cp != null ? c.cp : c.ilvl * 1.1;
+}
+
+function fmtCp(v) {
+  return Math.round(v).toLocaleString();
+}
+
+function buildGroups(pool, size) {
+  const supPerGroup = size / 4;
+  const dealPerGroup = size - supPerGroup;
+  let sups = pool.filter(c => c.role === 'support').sort((a, b) => eff(b) - eff(a));
+  let deals = pool.filter(c => c.role === 'dealer').sort((a, b) => eff(b) - eff(a));
+  const groups = [];
+
+  while (sups.length + deals.length > 0) {
+    const members = [];
+    const used = new Set();
+    const take = (arr, want) => {
+      let got = 0;
+      for (let i = 0; i < arr.length && got < want; ) {
+        if (!used.has(arr[i].pid)) {
+          used.add(arr[i].pid);
+          members.push(arr[i]);
+          arr.splice(i, 1);
+          got++;
+        } else i++;
+      }
+      return got;
+    };
+    const gotSup = take(sups, supPerGroup);
+    const gotDeal = take(deals, dealPerGroup);
+    if (gotSup + gotDeal === 0) break;
+    groups.push({
+      members,
+      supCount: gotSup,
+      dealCount: gotDeal,
+      needSup: supPerGroup - gotSup,
+      needDeal: dealPerGroup - gotDeal,
+      complete: gotSup === supPerGroup && gotDeal === dealPerGroup,
+    });
+  }
+  return groups;
+}
+
+function splitParties(group, size) {
+  if (size <= 4) return [group.members];
+  const sups = [...group.members.filter(c => c.role === 'support')].sort((a, b) => eff(b) - eff(a));
+  const deals = [...group.members.filter(c => c.role === 'dealer')].sort((a, b) => eff(b) - eff(a));
+  const p1 = [], p2 = [];
+  sups.forEach((s, i) => (i % 2 === 0 ? p1 : p2).push(s));
+  const dealSum = p => p.filter(c => c.role === 'dealer').reduce((n, c) => n + eff(c), 0);
+  deals.forEach(d => {
+    const open = [p1, p2].filter(p => p.length < 4);
+    if (!open.length) { p1.push(d); return; }
+    const target = open.length === 1 ? open[0] : (dealSum(p1) <= dealSum(p2) ? p1 : p2);
+    target.push(d);
+  });
+  return [p1, p2];
+}
+
+function slotHtml(c) {
+  return `
+    <div class="slot">
+      <span class="role-badge role-${c.role}">${c.role === 'support' ? '폿' : '딜'}</span>
+      <span class="pname">${esc(c.player)}</span>
+      <span class="cname">${esc(c.name)}</span>
+      <span class="nums">
+        ${c.cp != null ? `<span class="cp">${fmtCp(c.cp)}</span>` : ''}
+        <span class="ilvl">${c.ilvl}</span>
+      </span>
+    </div>
+  `;
+}
+
+function emptySlotHtml(role, n) {
+  let html = '';
+  for (let i = 0; i < n; i++) {
+    html += `<div class="slot empty">구인 — ${role}</div>`;
+  }
+  return html;
+}
+
+let lastResultText = '';
+
+function buildAll() {
+  const resultWrap = document.getElementById('results');
+  const active = RAIDS.filter(r => state.raids[r.id].enabled);
+  if (!state.players.length) {
+    resultWrap.innerHTML = '<div class="empty-msg">먼저 멤버와 캐릭터를 추가해주세요</div>';
+    return;
+  }
+  if (!active.length) {
+    resultWrap.innerHTML = '<div class="empty-msg">레이드를 하나 이상 선택해주세요</div>';
+    return;
+  }
+
+  const textLines = [];
+  let html = '';
+
+  active.forEach(raid => {
+    const diff = raid.diffs.find(d => d.id === state.raids[raid.id].diff);
+    const pool = eligibleChars(diff.ilvl);
+    const groups = buildGroups(pool, raid.size);
+
+    textLines.push(`━━ ${raid.name} [${diff.label}] (${diff.ilvl}+, ${raid.size}인) ━━`);
+
+    let groupsHtml = '';
+    if (!groups.length) {
+      groupsHtml = `<div class="empty-msg">입장 가능한 캐릭터가 없습니다 (${diff.ilvl} 이상 필요)</div>`;
+      textLines.push('입장 가능 캐릭터 없음');
+    }
+    groups.forEach((g, gi) => {
+      const parties = splitParties(g, raid.size);
+      const warns = [];
+      if (g.needSup > 0) warns.push(`서폿 ${g.needSup}명 구인`);
+      if (g.needDeal > 0) warns.push(`딜러 ${g.needDeal}명 구인`);
+      const partiesHtml = parties.map((party, pi) => {
+        const missSup = pi === parties.length - 1 ? g.needSup : 0;
+        const missDeal = pi === parties.length - 1 ? g.needDeal : 0;
+        return `
+          <div class="party">
+            ${raid.size > 4 ? `<div class="party-label">${pi + 1}파티</div>` : ''}
+            ${party.map(slotHtml).join('')}
+            ${pi === parties.length - 1 ? emptySlotHtml('서폿', missSup) + emptySlotHtml('딜러', missDeal) : ''}
+          </div>
+        `;
+      }).join('');
+      const cps = g.members.filter(c => c.cp != null);
+      const avgCp = cps.length ? cps.reduce((n, c) => n + c.cp, 0) / cps.length : null;
+      groupsHtml += `
+        <div class="group ${g.complete ? '' : 'incomplete'}">
+          <div class="group-head">
+            <span>${gi + 1}팟 ${g.complete ? '' : '(미완성)'}${avgCp != null ? ` <span style="color:#7fa8d9;font-weight:normal;font-size:12px">평균 전투력 ${fmtCp(avgCp)}</span>` : ''}</span>
+            ${warns.length ? `<span class="warn">⚠ ${warns.join(' · ')}</span>` : ''}
+          </div>
+          <div class="parties ${raid.size <= 4 ? 'single' : ''}">${partiesHtml}</div>
+        </div>
+      `;
+      textLines.push(`[${gi + 1}팟]${g.complete ? '' : ' (미완성: ' + warns.join(', ') + ')'}`);
+      parties.forEach((party, pi) => {
+        if (raid.size > 4) textLines.push(` ${pi + 1}파티`);
+        party.forEach(c => {
+          textLines.push(`  - ${c.player} / ${c.name} (${c.role === 'support' ? '폿' : '딜'}, ${c.ilvl}${c.cp != null ? ', 전투력 ' + fmtCp(c.cp) : ''})`);
+        });
+      });
+    });
+
+    html += `
+      <div class="raid-result">
+        <div class="raid-result-head">
+          <span class="name">${esc(raid.name)}</span>
+          <span class="meta">${diff.label} · ${diff.ilvl}+ · ${raid.size}인 · 입장 가능 ${pool.length}캐릭 · ${groups.length}팟</span>
+        </div>
+        <div class="groups">${groupsHtml}</div>
+      </div>
+    `;
+    textLines.push('');
+  });
+
+  html += `<button id="copy-btn" style="margin-top:4px">📋 결과 텍스트 복사 (카톡/디코 공유용)</button>`;
+  resultWrap.innerHTML = html;
+  lastResultText = textLines.join('\n');
+
+  const copyBtn = document.getElementById('copy-btn');
+  if (copyBtn) copyBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(lastResultText).then(() => toast('복사되었습니다!'));
+  });
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+function addPlayer() {
+  const input = document.getElementById('new-player-name');
+  const name = input.value.trim();
+  if (!name) return;
+  if (state.players.some(p => p.name === name)) { toast('이미 있는 이름입니다'); return; }
+  state.players.push({ id: uid(), name, chars: [{ id: uid(), name: '', role: 'dealer', ilvl: '', cp: '' }] });
+  input.value = '';
+  save();
+  renderPlayers();
+  input.focus();
+}
+
+document.getElementById('add-player-btn').addEventListener('click', addPlayer);
+document.getElementById('new-player-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addPlayer();
+});
+
+document.getElementById('players').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  const pid = btn.closest('.player-card').dataset.pid;
+  const player = state.players.find(p => p.id === pid);
+  const act = btn.dataset.act;
+  if (act === 'add-char') {
+    player.chars.push({ id: uid(), name: '', role: 'dealer', ilvl: '', cp: '' });
+  } else if (act === 'del-player') {
+    if (!confirm(`'${player.name}' 님과 캐릭터를 모두 삭제할까요?`)) return;
+    state.players = state.players.filter(p => p.id !== pid);
+  } else if (act === 'del-char') {
+    const cid = btn.closest('.char-row').dataset.cid;
+    player.chars = player.chars.filter(c => c.id !== cid);
+  }
+  save();
+  renderPlayers();
+});
+
+document.getElementById('players').addEventListener('input', e => {
+  const field = e.target.dataset.field;
+  if (!field) return;
+  const pid = e.target.closest('.player-card').dataset.pid;
+  const cid = e.target.closest('.char-row').dataset.cid;
+  const char = state.players.find(p => p.id === pid).chars.find(c => c.id === cid);
+  char[field] = e.target.value;
+  save();
+});
+
+document.getElementById('raid-settings').addEventListener('change', e => {
+  const field = e.target.dataset.field;
+  if (!field) return;
+  const rid = e.target.closest('.raid-option').dataset.rid;
+  if (field === 'enabled') state.raids[rid].enabled = e.target.checked;
+  else state.raids[rid].diff = e.target.value;
+  save();
+  renderRaidSettings();
+});
+
+document.getElementById('build-btn').addEventListener('click', buildAll);
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  if (!confirm('모든 데이터를 삭제할까요?')) return;
+  state = defaultState();
+  save();
+  renderPlayers();
+  renderRaidSettings();
+  document.getElementById('results').innerHTML =
+    '<div class="empty-msg">멤버와 캐릭터를 입력한 뒤 [팟 짜기]를 눌러주세요</div>';
+});
+
+document.getElementById('sample-btn').addEventListener('click', () => {
+  state.players = [
+    { id: uid(), name: '명지', chars: [
+      { id: uid(), name: '소서리스', role: 'dealer', ilvl: '1745', cp: '2235' },
+      { id: uid(), name: '홀리나이트', role: 'support', ilvl: '1730', cp: '1880' },
+      { id: uid(), name: '블레이드', role: 'dealer', ilvl: '1712', cp: '1905' },
+    ]},
+    { id: uid(), name: '철수', chars: [
+      { id: uid(), name: '버서커', role: 'dealer', ilvl: '1735', cp: '2110' },
+      { id: uid(), name: '바드', role: 'support', ilvl: '1720', cp: '1840' },
+    ]},
+    { id: uid(), name: '영희', chars: [
+      { id: uid(), name: '데빌헌터', role: 'dealer', ilvl: '1728', cp: '2050' },
+      { id: uid(), name: '도화가', role: 'support', ilvl: '1741', cp: '1985' },
+      { id: uid(), name: '리퍼', role: 'dealer', ilvl: '1705', cp: '1860' },
+    ]},
+    { id: uid(), name: '민수', chars: [
+      { id: uid(), name: '건슬링어', role: 'dealer', ilvl: '1738', cp: '2160' },
+      { id: uid(), name: '스카우터', role: 'dealer', ilvl: '1715', cp: '1890' },
+    ]},
+    { id: uid(), name: '지은', chars: [
+      { id: uid(), name: '기공사', role: 'dealer', ilvl: '1722', cp: '1990' },
+      { id: uid(), name: '발키리', role: 'support', ilvl: '1708', cp: '1770' },
+    ]},
+    { id: uid(), name: '동현', chars: [
+      { id: uid(), name: '디스트로이어', role: 'dealer', ilvl: '1731', cp: '2075' },
+      { id: uid(), name: '창술사', role: 'dealer', ilvl: '1702', cp: '1810' },
+    ]},
+    { id: uid(), name: '수빈', chars: [
+      { id: uid(), name: '아르카나', role: 'dealer', ilvl: '1726', cp: '2020' },
+    ]},
+    { id: uid(), name: '태양', chars: [
+      { id: uid(), name: '워로드', role: 'dealer', ilvl: '1718', cp: '1930' },
+      { id: uid(), name: '홀리나이트', role: 'support', ilvl: '1700', cp: '1720' },
+    ]},
+  ];
+  save();
+  renderPlayers();
+  toast('예시 데이터를 불러왔습니다');
+});
+
+const SUPPORT_CLASSES = ['바드', '홀리나이트', '도화가', '발키리'];
+const API_KEY_STORAGE = 'loa-api-key';
+const apiKeyInput = document.getElementById('api-key');
+apiKeyInput.value = localStorage.getItem(API_KEY_STORAGE) || '';
+apiKeyInput.addEventListener('input', () => localStorage.setItem(API_KEY_STORAGE, apiKeyInput.value.trim()));
+
+function parseNum(s) {
+  const v = parseFloat(String(s).replace(/,/g, ''));
+  return isNaN(v) ? null : v;
+}
+
+async function loApi(path, key) {
+  const res = await fetch('https://developer-lostark.game.onstove.com' + path, {
+    headers: { accept: 'application/json', authorization: 'bearer ' + key },
+  });
+  if (res.status === 401) throw new Error('API 키가 올바르지 않습니다');
+  if (res.status === 429) throw new Error('요청이 너무 많습니다. 잠시 후 다시 시도해주세요');
+  if (res.status === 503) throw new Error('로스트아크 API 점검 중입니다');
+  if (!res.ok) throw new Error('API 오류 (' + res.status + ')');
+  return res.json();
+}
+
+async function doFetch() {
+  const key = apiKeyInput.value.trim();
+  const charName = document.getElementById('fetch-char').value.trim();
+  if (!key) { toast('API 키를 입력해주세요'); apiKeyInput.focus(); return; }
+  if (!charName) { toast('캐릭터명을 입력해주세요'); return; }
+  const btn = document.getElementById('fetch-btn');
+  btn.disabled = true;
+  btn.textContent = '검색 중...';
+  try {
+    const list = await loApi('/characters/' + encodeURIComponent(charName) + '/siblings', key);
+    if (!list || !list.length) throw new Error('캐릭터를 찾을 수 없습니다');
+    openRosterModal(charName, list);
+  } catch (e) {
+    toast(e.message);
+  }
+  btn.disabled = false;
+  btn.textContent = '검색';
+}
+
+document.getElementById('fetch-btn').addEventListener('click', doFetch);
+document.getElementById('fetch-char').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doFetch();
+});
+
+function openRosterModal(searched, list) {
+  const rows = list
+    .map(c => ({
+      name: c.CharacterName,
+      cls: c.CharacterClassName,
+      server: c.ServerName,
+      ilvl: parseNum(c.ItemAvgLevel) || 0,
+    }))
+    .sort((a, b) => b.ilvl - a.ilvl);
+  document.getElementById('modal-title').textContent = `'${searched}' 원정대 캐릭터 (${rows.length}개)`;
+  document.getElementById('modal-list').innerHTML = rows.map((c, i) => `
+    <label class="modal-row" data-idx="${i}">
+      <input type="checkbox" ${c.ilvl >= 1700 ? 'checked' : ''}>
+      <span><b>${esc(c.name)}</b> <span class="cls">${esc(c.cls)} · ${esc(c.server)}</span></span>
+      <span class="lvl">${c.ilvl}</span>
+      <select>
+        <option value="dealer" ${SUPPORT_CLASSES.includes(c.cls) ? '' : 'selected'}>딜러</option>
+        <option value="support" ${SUPPORT_CLASSES.includes(c.cls) ? 'selected' : ''}>서폿</option>
+      </select>
+    </label>
+  `).join('');
+  const modal = document.getElementById('modal-bg');
+  modal.hidden = false;
+  modal.dataset.searched = searched;
+  modal.rosterRows = rows;
+}
+
+function closeModal() {
+  document.getElementById('modal-bg').hidden = true;
+}
+
+document.getElementById('modal-cancel').addEventListener('click', closeModal);
+document.getElementById('modal-bg').addEventListener('click', e => {
+  if (e.target.id === 'modal-bg') closeModal();
+});
+
+document.getElementById('modal-ok').addEventListener('click', async () => {
+  const modal = document.getElementById('modal-bg');
+  const rows = modal.rosterRows || [];
+  const key = apiKeyInput.value.trim();
+  const selected = [];
+  modal.querySelectorAll('.modal-row').forEach(rowEl => {
+    if (rowEl.querySelector('input[type=checkbox]').checked) {
+      const c = rows[Number(rowEl.dataset.idx)];
+      selected.push({ ...c, role: rowEl.querySelector('select').value });
+    }
+  });
+  if (!selected.length) { toast('캐릭터를 선택해주세요'); return; }
+  const okBtn = document.getElementById('modal-ok');
+  okBtn.disabled = true;
+  for (let i = 0; i < selected.length; i++) {
+    okBtn.textContent = `전투력 조회 중... ${i + 1}/${selected.length}`;
+    try {
+      const prof = await loApi('/armories/characters/' + encodeURIComponent(selected[i].name) + '/profiles', key);
+      selected[i].cp = prof ? parseNum(prof.CombatPower) : null;
+      if (prof) {
+        const pIlvl = parseNum(prof.ItemAvgLevel);
+        if (pIlvl) selected[i].ilvl = pIlvl;
+      }
+    } catch (e) {
+      selected[i].cp = null;
+    }
+  }
+  const playerName = document.getElementById('fetch-player').value.trim() || modal.dataset.searched;
+  let player = state.players.find(p => p.name === playerName);
+  if (!player) {
+    player = { id: uid(), name: playerName, chars: [] };
+    state.players.push(player);
+  }
+  player.chars = player.chars.filter(c => c.name || c.ilvl);
+  selected.forEach(c => {
+    const data = { name: c.name, role: c.role, ilvl: String(c.ilvl), cp: c.cp != null ? String(Math.round(c.cp)) : '' };
+    const existing = player.chars.find(x => x.name === c.name);
+    if (existing) Object.assign(existing, data);
+    else player.chars.push({ id: uid(), ...data });
+  });
+  save();
+  renderPlayers();
+  okBtn.disabled = false;
+  okBtn.textContent = '선택한 캐릭터 추가';
+  closeModal();
+  toast(`'${playerName}'에 캐릭터 ${selected.length}개를 불러왔습니다`);
+});
+
+renderPlayers();
+renderRaidSettings();
+</script>
+</body>
+</html>
