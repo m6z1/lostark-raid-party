@@ -15,6 +15,11 @@ test('support classes do not add dealer synergy categories', () => {
   assert.deepEqual(core.synergyKeys({ cls: '발키리', role: 'support' }), []);
 });
 
+test('classifies glaivier as critical damage synergy', () => {
+  assert.deepEqual(core.synergyKeys({ cls: '창술사', role: 'dealer' }), ['critDamage']);
+  assert.equal(core.SYNERGIES.critDamage.label, '치명타 피해 증가');
+});
+
 test('8-player split prioritizes distinct synergies while keeping one support per party', () => {
   const members = [
     { name: 's1', role: 'support', cp: 100 }, { name: 's2', role: 'support', cp: 100 },
