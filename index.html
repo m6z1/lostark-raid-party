@@ -523,57 +523,7 @@ function fmtCp(v) {
 }
 
 function buildGroups(pool, size) {
-  const supPerGroup = size / 4;
-  const dealPerGroup = size - supPerGroup;
-  let sups = pool.filter(c => c.role === 'support').sort((a, b) => eff(b) - eff(a));
-  let deals = pool.filter(c => c.role === 'dealer').sort((a, b) => eff(b) - eff(a));
-  const groups = [];
-
-  while (sups.length + deals.length > 0) {
-    const members = [];
-    const used = new Set();
-    const take = (arr, want) => {
-      let got = 0;
-      for (let i = 0; i < arr.length && got < want; ) {
-        if (!used.has(arr[i].pid)) {
-          used.add(arr[i].pid);
-          members.push(arr[i]);
-          arr.splice(i, 1);
-          got++;
-        } else i++;
-      }
-      return got;
-    };
-    const gotSup = take(sups, supPerGroup);
-    let gotDeal = 0;
-    const synergyKeys = new Set();
-    while (gotDeal < dealPerGroup) {
-      let bestIndex = -1;
-      let bestScore = -Infinity;
-      deals.forEach((c, i) => {
-        if (used.has(c.pid)) return;
-        const newKeys = PartyCore.synergyKeys(c).filter(key => !synergyKeys.has(key)).length;
-        const score = newKeys * 100000 + eff(c);
-        if (score > bestScore) { bestScore = score; bestIndex = i; }
-      });
-      if (bestIndex < 0) break;
-      const picked = deals.splice(bestIndex, 1)[0];
-      used.add(picked.pid);
-      members.push(picked);
-      PartyCore.synergyKeys(picked).forEach(key => synergyKeys.add(key));
-      gotDeal++;
-    }
-    if (gotSup + gotDeal === 0) break;
-    groups.push({
-      members,
-      supCount: gotSup,
-      dealCount: gotDeal,
-      needSup: supPerGroup - gotSup,
-      needDeal: dealPerGroup - gotDeal,
-      complete: gotSup === supPerGroup && gotDeal === dealPerGroup,
-    });
-  }
-  return groups;
+  return PartyCore.buildGroups(pool, size, eff);
 }
 
 function splitParties(group, size) { return PartyCore.splitParties(group, size, eff); }

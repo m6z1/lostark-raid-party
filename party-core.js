@@ -72,6 +72,73 @@
     return best.parties;
   }
 
+  function buildGroups(pool, size, powerOf) {
+    const power = powerOf || (c => Number(c.cp) || Number(c.ilvl) || 0);
+    const supPerGroup = size / 4;
+    const dealPerGroup = size - supPerGroup;
+    const remaining = pool.slice();
+    const groups = [];
+
+    while (remaining.length) {
+      const supportByPlayer = new Map();
+      remaining.filter(c => c.role === 'support').forEach(c => {
+        const current = supportByPlayer.get(c.pid);
+        if (!current || power(c) > power(current)) supportByPlayer.set(c.pid, c);
+      });
+      const supportChoices = [...supportByPlayer.values()];
+      const supportCount = Math.min(supPerGroup, supportChoices.length);
+      const supportSets = supportCount ? combinations(supportChoices, supportCount) : [[]];
+      let best = null;
+
+      supportSets.forEach(supports => {
+        const usedPlayers = new Set(supports.map(c => c.pid));
+        const dealers = remaining.filter(c => c.role === 'dealer' && !usedPlayers.has(c.pid));
+        const pickedDealers = [];
+        const pickedDealerPlayers = new Set();
+        const synergy = new Set();
+
+        while (pickedDealers.length < dealPerGroup) {
+          let choice = null;
+          let choiceScore = -Infinity;
+          dealers.forEach(c => {
+            if (pickedDealerPlayers.has(c.pid)) return;
+            const newSynergies = synergyKeys(c).filter(key => !synergy.has(key)).length;
+            const score = newSynergies * 1000000 + power(c);
+            if (score > choiceScore) { choice = c; choiceScore = score; }
+          });
+          if (!choice) break;
+          pickedDealers.push(choice);
+          pickedDealerPlayers.add(choice.pid);
+          synergyKeys(choice).forEach(key => synergy.add(key));
+        }
+
+        const members = supports.concat(pickedDealers);
+        const complete = supports.length === supPerGroup && pickedDealers.length === dealPerGroup;
+        const score = (complete ? 1e15 : 0)
+          + members.length * 1e12
+          + supports.length * 1e10
+          + synergy.size * 1e7
+          + members.reduce((sum, c) => sum + power(c), 0);
+        if (!best || score > best.score) best = { score, members, supports, pickedDealers, complete };
+      });
+
+      if (!best || !best.members.length) break;
+      const selected = new Set(best.members);
+      for (let i = remaining.length - 1; i >= 0; i--) {
+        if (selected.has(remaining[i])) remaining.splice(i, 1);
+      }
+      groups.push({
+        members: best.members,
+        supCount: best.supports.length,
+        dealCount: best.pickedDealers.length,
+        needSup: supPerGroup - best.supports.length,
+        needDeal: dealPerGroup - best.pickedDealers.length,
+        complete: best.complete,
+      });
+    }
+    return groups;
+  }
+
   function addHistoryEntry(history, state, id, createdAt, limit) {
     const snapshot = JSON.parse(JSON.stringify(state));
     const serialized = JSON.stringify(snapshot);
@@ -81,5 +148,5 @@
     return entries.slice(0, limit || 5);
   }
 
-  return { CLASSES, SYNERGIES, synergyKeys, partySynergies, splitParties, addHistoryEntry };
+  return { CLASSES, SYNERGIES, synergyKeys, partySynergies, splitParties, buildGroups, addHistoryEntry };
 }));
