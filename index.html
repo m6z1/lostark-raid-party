@@ -198,6 +198,7 @@ button.ghost:hover { color: var(--danger); }
 }
 .slot .pname { font-weight: 700; }
 .slot .cname { color: var(--muted); }
+.slot .slot-synergy { color: #a9b7d0; font-size: 11px; }
 .slot .nums { margin-left: auto; display: flex; gap: 8px; align-items: baseline; }
 .slot .cp { color: #7fa8d9; font-size: 12px; }
 .slot .ilvl { color: var(--gold); font-size: 12px; }
@@ -500,16 +501,21 @@ function synergyText(party) {
   return keys.length ? keys.map(k => PartyCore.SYNERGIES[k].label).join(' · ') : '클래스 시너지 정보 없음';
 }
 
+function classSynergyText(c) {
+  const keys = PartyCore.synergyKeys(c);
+  if (keys.length) return keys.map(k => PartyCore.SYNERGIES[k].label).join(' · ');
+  return c.role === 'support' ? '서포트' : '시너지 정보 없음';
+}
+
 function slotHtml(c) {
   return `
     <div class="slot">
-      <span class="role-badge role-${c.role}">${c.role === 'support' ? '폿' : '딜'}</span>
       <span class="pname">${esc(c.player)}</span>
-      <span class="cname">${esc(c.name)}</span>
-      ${c.cls ? `<span class="cname">${esc(c.cls)}</span>` : ''}
+      <span class="cname">${esc(c.cls || c.name)}</span>
+      <span class="slot-synergy">${esc(classSynergyText(c))}</span>
       <span class="nums">
-        ${c.cp != null ? `<span class="cp">${fmtCp(c.cp)}</span>` : ''}
-        <span class="ilvl">${c.ilvl}</span>
+        <span class="ilvl">Lv. ${c.ilvl}</span>
+        ${c.cp != null ? `<span class="cp">전투력 ${fmtCp(c.cp)}</span>` : ''}
       </span>
     </div>
   `;
@@ -584,7 +590,7 @@ function buildAll() {
       parties.forEach((party, pi) => {
         if (raid.size > 4) textLines.push(` ${pi + 1}파티`);
         party.forEach(c => {
-          textLines.push(`  - ${c.player} / ${c.name}${c.cls ? ' / ' + c.cls : ''} (${c.role === 'support' ? '폿' : '딜'}, ${c.ilvl}${c.cp != null ? ', 전투력 ' + fmtCp(c.cp) : ''})`);
+          textLines.push(`  - ${c.player} / ${c.cls || c.name} / ${classSynergyText(c)} / Lv. ${c.ilvl}${c.cp != null ? ' / 전투력 ' + fmtCp(c.cp) : ''}`);
         });
         textLines.push(`  시너지: ${synergyText(party)}`);
       });
