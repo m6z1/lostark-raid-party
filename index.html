@@ -117,7 +117,7 @@ button.ghost:hover { color: var(--danger); }
 .player-name .count { color: var(--muted); font-weight: normal; font-size: 12px; margin-left: 6px; }
 .char-row {
   display: grid;
-  grid-template-columns: 1fr 68px 76px 86px 26px;
+  grid-template-columns: 1fr 100px 68px 76px 86px 26px;
   gap: 6px;
   margin-bottom: 6px;
   align-items: center;
@@ -201,6 +201,8 @@ button.ghost:hover { color: var(--danger); }
 .slot .nums { margin-left: auto; display: flex; gap: 8px; align-items: baseline; }
 .slot .cp { color: #7fa8d9; font-size: 12px; }
 .slot .ilvl { color: var(--gold); font-size: 12px; }
+.synergy-row { margin-top: 5px; font-size: 11px; color: #a9b7d0; }
+.synergy-row .missing { color: var(--muted); }
 .slot.empty { color: #5a5e70; border: 1px dashed var(--border); background: none; justify-content: center; }
 .unassigned { padding: 0 16px 14px; font-size: 13px; color: var(--muted); }
 .unassigned b { color: var(--text); }
@@ -304,12 +306,13 @@ button.ghost:hover { color: var(--danger); }
 
 <div class="toast" id="toast"></div>
 
+<script src="party-core.js"></script>
 <script>
 const RAIDS = [
   { id: 'act4', name: '4막 파멸의 성채', sub: '에키드나 · 아르모체 / 8인', size: 8,
     diffs: [ { id: 'normal', label: '노말', ilvl: 1700 }, { id: 'hard', label: '하드', ilvl: 1720 } ] },
   { id: 'finale', name: '종막 최후의 날', sub: '카제로스 / 8인', size: 8,
-    diffs: [ { id: 'normal', label: '노말', ilvl: 1710 }, { id: 'hard', label: '하드', ilvl: 1730 }, { id: 'first', label: '더 퍼스트', ilvl: 1740 } ] },
+    diffs: [ { id: 'normal', label: '노말', ilvl: 1710 }, { id: 'hard', label: '하드', ilvl: 1730 } ] },
   { id: 'serka', name: '세르카', sub: '고통의 마녀 (그림자 레이드) / 4인', size: 4,
     diffs: [ { id: 'normal', label: '노말', ilvl: 1710 }, { id: 'hard', label: '하드', ilvl: 1730 }, { id: 'nightmare', label: '나이트메어', ilvl: 1740 } ] },
   { id: 'cathedral', name: '지평의 성당', sub: '어비스 던전 / 4인', size: 4,
@@ -322,9 +325,24 @@ let state = load();
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) return migrate(JSON.parse(raw));
   } catch (e) {}
   return defaultState();
+}
+
+function migrate(saved) {
+  const defaults = defaultState();
+  saved.players = Array.isArray(saved.players) ? saved.players : [];
+  saved.players.forEach(p => (p.chars || []).forEach(c => { if (!c.cls) c.cls = ''; }));
+  saved.raids = saved.raids || {};
+  RAIDS.forEach(r => {
+    const old = saved.raids[r.id] || defaults.raids[r.id];
+    saved.raids[r.id] = {
+      enabled: old.enabled !== false,
+      diff: r.diffs.some(d => d.id === old.diff) ? old.diff : r.diffs[0].id,
+    };
+  });
+  return saved;
 }
 
 function defaultState() {
@@ -362,6 +380,10 @@ function renderPlayers() {
       ${p.chars.map(c => `
         <div class="char-row" data-cid="${c.id}">
           <input type="text" value="${esc(c.name)}" placeholder="캐릭터명" data-field="name" maxlength="14">
+          <select data-field="cls" title="클래스">
+            <option value="">클래스</option>
+            ${PartyCore.CLASSES.map(cls => `<option value="${cls}" ${c.cls === cls ? 'selected' : ''}>${cls}</option>`).join('')}
+          </select>
           <select data-field="role">
             <option value="dealer" ${c.role === 'dealer' ? 'selected' : ''}>딜러</option>
             <option value="support" ${c.role === 'support' ? 'selected' : ''}>서폿</option>
@@ -402,7 +424,7 @@ function eligibleChars(req) {
       if (!isNaN(ilvl) && ilvl >= req) {
         const cpRaw = parseFloat(c.cp);
         const cp = isNaN(cpRaw) ? null : cpRaw;
-        pool.push({ player: p.name, pid: p.id, name: c.name || '(이름없음)', role: c.role, ilvl, cp });
+        pool.push({ player: p.name, pid: p.id, name: c.name || '(이름없음)', cls: c.cls || '', role: c.role, ilvl, cp });
       }
     });
   });
@@ -440,7 +462,24 @@ function buildGroups(pool, size) {
       return got;
     };
     const gotSup = take(sups, supPerGroup);
-    const gotDeal = take(deals, dealPerGroup);
+    let gotDeal = 0;
+    const synergyKeys = new Set();
+    while (gotDeal < dealPerGroup) {
+      let bestIndex = -1;
+      let bestScore = -Infinity;
+      deals.forEach((c, i) => {
+        if (used.has(c.pid)) return;
+        const newKeys = PartyCore.synergyKeys(c).filter(key => !synergyKeys.has(key)).length;
+        const score = newKeys * 100000 + eff(c);
+        if (score > bestScore) { bestScore = score; bestIndex = i; }
+      });
+      if (bestIndex < 0) break;
+      const picked = deals.splice(bestIndex, 1)[0];
+      used.add(picked.pid);
+      members.push(picked);
+      PartyCore.synergyKeys(picked).forEach(key => synergyKeys.add(key));
+      gotDeal++;
+    }
     if (gotSup + gotDeal === 0) break;
     groups.push({
       members,
@@ -454,20 +493,11 @@ function buildGroups(pool, size) {
   return groups;
 }
 
-function splitParties(group, size) {
-  if (size <= 4) return [group.members];
-  const sups = [...group.members.filter(c => c.role === 'support')].sort((a, b) => eff(b) - eff(a));
-  const deals = [...group.members.filter(c => c.role === 'dealer')].sort((a, b) => eff(b) - eff(a));
-  const p1 = [], p2 = [];
-  sups.forEach((s, i) => (i % 2 === 0 ? p1 : p2).push(s));
-  const dealSum = p => p.filter(c => c.role === 'dealer').reduce((n, c) => n + eff(c), 0);
-  deals.forEach(d => {
-    const open = [p1, p2].filter(p => p.length < 4);
-    if (!open.length) { p1.push(d); return; }
-    const target = open.length === 1 ? open[0] : (dealSum(p1) <= dealSum(p2) ? p1 : p2);
-    target.push(d);
-  });
-  return [p1, p2];
+function splitParties(group, size) { return PartyCore.splitParties(group, size, eff); }
+
+function synergyText(party) {
+  const keys = PartyCore.partySynergies(party);
+  return keys.length ? keys.map(k => PartyCore.SYNERGIES[k].label).join(' · ') : '클래스 시너지 정보 없음';
 }
 
 function slotHtml(c) {
@@ -476,6 +506,7 @@ function slotHtml(c) {
       <span class="role-badge role-${c.role}">${c.role === 'support' ? '폿' : '딜'}</span>
       <span class="pname">${esc(c.player)}</span>
       <span class="cname">${esc(c.name)}</span>
+      ${c.cls ? `<span class="cname">${esc(c.cls)}</span>` : ''}
       <span class="nums">
         ${c.cp != null ? `<span class="cp">${fmtCp(c.cp)}</span>` : ''}
         <span class="ilvl">${c.ilvl}</span>
@@ -534,6 +565,7 @@ function buildAll() {
             ${raid.size > 4 ? `<div class="party-label">${pi + 1}파티</div>` : ''}
             ${party.map(slotHtml).join('')}
             ${pi === parties.length - 1 ? emptySlotHtml('서폿', missSup) + emptySlotHtml('딜러', missDeal) : ''}
+            <div class="synergy-row ${PartyCore.partySynergies(party).length ? '' : 'missing'}">시너지 · ${esc(synergyText(party))}</div>
           </div>
         `;
       }).join('');
@@ -552,8 +584,9 @@ function buildAll() {
       parties.forEach((party, pi) => {
         if (raid.size > 4) textLines.push(` ${pi + 1}파티`);
         party.forEach(c => {
-          textLines.push(`  - ${c.player} / ${c.name} (${c.role === 'support' ? '폿' : '딜'}, ${c.ilvl}${c.cp != null ? ', 전투력 ' + fmtCp(c.cp) : ''})`);
+          textLines.push(`  - ${c.player} / ${c.name}${c.cls ? ' / ' + c.cls : ''} (${c.role === 'support' ? '폿' : '딜'}, ${c.ilvl}${c.cp != null ? ', 전투력 ' + fmtCp(c.cp) : ''})`);
         });
+        textLines.push(`  시너지: ${synergyText(party)}`);
       });
     });
 
@@ -591,7 +624,7 @@ function addPlayer() {
   const name = input.value.trim();
   if (!name) return;
   if (state.players.some(p => p.name === name)) { toast('이미 있는 이름입니다'); return; }
-  state.players.push({ id: uid(), name, chars: [{ id: uid(), name: '', role: 'dealer', ilvl: '', cp: '' }] });
+  state.players.push({ id: uid(), name, chars: [{ id: uid(), name: '', cls: '', role: 'dealer', ilvl: '', cp: '' }] });
   input.value = '';
   save();
   renderPlayers();
@@ -610,7 +643,7 @@ document.getElementById('players').addEventListener('click', e => {
   const player = state.players.find(p => p.id === pid);
   const act = btn.dataset.act;
   if (act === 'add-char') {
-    player.chars.push({ id: uid(), name: '', role: 'dealer', ilvl: '', cp: '' });
+    player.chars.push({ id: uid(), name: '', cls: '', role: 'dealer', ilvl: '', cp: '' });
   } else if (act === 'del-player') {
     if (!confirm(`'${player.name}' 님과 캐릭터를 모두 삭제할까요?`)) return;
     state.players = state.players.filter(p => p.id !== pid);
@@ -657,37 +690,37 @@ document.getElementById('reset-btn').addEventListener('click', () => {
 document.getElementById('sample-btn').addEventListener('click', () => {
   state.players = [
     { id: uid(), name: '명지', chars: [
-      { id: uid(), name: '소서리스', role: 'dealer', ilvl: '1745', cp: '2235' },
-      { id: uid(), name: '홀리나이트', role: 'support', ilvl: '1730', cp: '1880' },
-      { id: uid(), name: '블레이드', role: 'dealer', ilvl: '1712', cp: '1905' },
+      { id: uid(), name: '소서리스', cls: '소서리스', role: 'dealer', ilvl: '1745', cp: '2235' },
+      { id: uid(), name: '홀리나이트', cls: '홀리나이트', role: 'support', ilvl: '1730', cp: '1880' },
+      { id: uid(), name: '블레이드', cls: '블레이드', role: 'dealer', ilvl: '1712', cp: '1905' },
     ]},
     { id: uid(), name: '철수', chars: [
-      { id: uid(), name: '버서커', role: 'dealer', ilvl: '1735', cp: '2110' },
-      { id: uid(), name: '바드', role: 'support', ilvl: '1720', cp: '1840' },
+      { id: uid(), name: '버서커', cls: '버서커', role: 'dealer', ilvl: '1735', cp: '2110' },
+      { id: uid(), name: '바드', cls: '바드', role: 'support', ilvl: '1720', cp: '1840' },
     ]},
     { id: uid(), name: '영희', chars: [
-      { id: uid(), name: '데빌헌터', role: 'dealer', ilvl: '1728', cp: '2050' },
-      { id: uid(), name: '도화가', role: 'support', ilvl: '1741', cp: '1985' },
-      { id: uid(), name: '리퍼', role: 'dealer', ilvl: '1705', cp: '1860' },
+      { id: uid(), name: '데빌헌터', cls: '데빌헌터', role: 'dealer', ilvl: '1728', cp: '2050' },
+      { id: uid(), name: '도화가', cls: '도화가', role: 'support', ilvl: '1741', cp: '1985' },
+      { id: uid(), name: '리퍼', cls: '리퍼', role: 'dealer', ilvl: '1705', cp: '1860' },
     ]},
     { id: uid(), name: '민수', chars: [
-      { id: uid(), name: '건슬링어', role: 'dealer', ilvl: '1738', cp: '2160' },
-      { id: uid(), name: '스카우터', role: 'dealer', ilvl: '1715', cp: '1890' },
+      { id: uid(), name: '건슬링어', cls: '건슬링어', role: 'dealer', ilvl: '1738', cp: '2160' },
+      { id: uid(), name: '스카우터', cls: '스카우터', role: 'dealer', ilvl: '1715', cp: '1890' },
     ]},
     { id: uid(), name: '지은', chars: [
-      { id: uid(), name: '기공사', role: 'dealer', ilvl: '1722', cp: '1990' },
-      { id: uid(), name: '발키리', role: 'support', ilvl: '1708', cp: '1770' },
+      { id: uid(), name: '기공사', cls: '기공사', role: 'dealer', ilvl: '1722', cp: '1990' },
+      { id: uid(), name: '발키리', cls: '발키리', role: 'support', ilvl: '1708', cp: '1770' },
     ]},
     { id: uid(), name: '동현', chars: [
-      { id: uid(), name: '디스트로이어', role: 'dealer', ilvl: '1731', cp: '2075' },
-      { id: uid(), name: '창술사', role: 'dealer', ilvl: '1702', cp: '1810' },
+      { id: uid(), name: '디스트로이어', cls: '디스트로이어', role: 'dealer', ilvl: '1731', cp: '2075' },
+      { id: uid(), name: '창술사', cls: '창술사', role: 'dealer', ilvl: '1702', cp: '1810' },
     ]},
     { id: uid(), name: '수빈', chars: [
-      { id: uid(), name: '아르카나', role: 'dealer', ilvl: '1726', cp: '2020' },
+      { id: uid(), name: '아르카나', cls: '아르카나', role: 'dealer', ilvl: '1726', cp: '2020' },
     ]},
     { id: uid(), name: '태양', chars: [
-      { id: uid(), name: '워로드', role: 'dealer', ilvl: '1718', cp: '1930' },
-      { id: uid(), name: '홀리나이트', role: 'support', ilvl: '1700', cp: '1720' },
+      { id: uid(), name: '워로드', cls: '워로드', role: 'dealer', ilvl: '1718', cp: '1930' },
+      { id: uid(), name: '홀리나이트', cls: '홀리나이트', role: 'support', ilvl: '1700', cp: '1720' },
     ]},
   ];
   save();
@@ -812,7 +845,7 @@ document.getElementById('modal-ok').addEventListener('click', async () => {
   }
   player.chars = player.chars.filter(c => c.name || c.ilvl);
   selected.forEach(c => {
-    const data = { name: c.name, role: c.role, ilvl: String(c.ilvl), cp: c.cp != null ? String(Math.round(c.cp)) : '' };
+    const data = { name: c.name, cls: c.cls, role: c.role, ilvl: String(c.ilvl), cp: c.cp != null ? String(Math.round(c.cp)) : '' };
     const existing = player.chars.find(x => x.name === c.name);
     if (existing) Object.assign(existing, data);
     else player.chars.push({ id: uid(), ...data });
