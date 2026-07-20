@@ -1,0 +1,14 @@
+{
+  "name": "lostark-raid-party-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "secret": "wrangler secret put LOSTARK_API_KEY",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260719.1",
+    "wrangler": "^4.36.0"
+  }
+}

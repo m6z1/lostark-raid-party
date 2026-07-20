@@ -23,11 +23,21 @@ open index.html
 
 ## 전투정보실 자동 불러오기
 
-멤버 패널의 "🔍 전투정보실에서 자동 불러오기"에서 대표 캐릭터명 하나만 검색하면 원정대 전체 캐릭터의 클래스 · 아이템레벨 · 전투력을 로스트아크 공식 오픈 API로 가져온다.
+멤버 패널의 "🔍 전투정보실에서 자동 불러오기"에서 대표 캐릭터명 하나만 검색하면 원정대 전체 캐릭터의 클래스 · 아이템레벨 · 전투력을 로스트아크 공식 오픈 API로 가져온다. 방문자는 API 키를 입력하지 않는다.
 
-- API 키는 [developer-lostark.game.onstove.com](https://developer-lostark.game.onstove.com)에서 무료 발급 (스토브 로그인 → 클라이언트 등록)
-- 키는 브라우저 localStorage에만 저장되고 로스트아크 공식 API 외에는 어디에도 전송되지 않음
+- 운영자가 [developer-lostark.game.onstove.com](https://developer-lostark.game.onstove.com)에서 발급한 키는 Cloudflare Worker의 `LOSTARK_API_KEY` Secret으로만 보관
+- 키는 저장소·배포 파일·브라우저에 포함되지 않음
 - 1700 이상 캐릭터가 기본 선택되고, 바드/홀리나이트/도화가/발키리는 서폿으로 자동 분류 (딜폿은 목록에서 딜러로 바꾸면 됨)
+
+### API 프록시 배포
+
+1. `cd worker && npm install`
+2. `npx wrangler login`
+3. `npm run deploy`
+4. 새로 재발급한 로스트아크 API 키를 `npm run secret`으로 등록
+5. 배포된 `https://...workers.dev` 주소를 루트의 `proxy-config.js`에 입력
+
+노출된 키는 재사용하지 않는다. 로컬 개발용 키가 필요하면 `worker/.dev.vars`에 `LOSTARK_API_KEY=...` 형식으로 저장하며 이 파일은 Git에서 제외된다.
 
 ## 팟 배정 규칙
 

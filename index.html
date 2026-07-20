@@ -265,10 +265,8 @@ button.ghost:hover { color: var(--danger); }
     <details class="fetch-box">
       <summary>🔍 전투정보실에서 자동 불러오기</summary>
       <div class="fetch-form">
-        <input type="password" id="api-key" placeholder="로스트아크 오픈 API 키" autocomplete="off">
         <div class="fetch-hint">
-          <a href="https://developer-lostark.game.onstove.com" target="_blank" rel="noopener">developer-lostark.game.onstove.com</a>에서 무료 발급 (스토브 로그인 → 클라이언트 등록).
-          키는 이 브라우저에만 저장됩니다.
+          API 키 입력 없이 캐릭터명만 검색하면 원정대 정보를 불러옵니다.
         </div>
         <div class="fetch-row">
           <input type="text" id="fetch-char" placeholder="대표 캐릭터명" maxlength="14">
@@ -307,6 +305,7 @@ button.ghost:hover { color: var(--danger); }
 
 <div class="toast" id="toast"></div>
 
+<script src="proxy-config.js"></script>
 <script src="party-core.js"></script>
 <script>
 const RAIDS = [
@@ -735,21 +734,17 @@ document.getElementById('sample-btn').addEventListener('click', () => {
 });
 
 const SUPPORT_CLASSES = ['바드', '홀리나이트', '도화가', '발키리'];
-const API_KEY_STORAGE = 'loa-api-key';
-const apiKeyInput = document.getElementById('api-key');
-apiKeyInput.value = localStorage.getItem(API_KEY_STORAGE) || '';
-apiKeyInput.addEventListener('input', () => localStorage.setItem(API_KEY_STORAGE, apiKeyInput.value.trim()));
+const API_PROXY_BASE = String(window.LOA_API_PROXY_URL || '').replace(/\/$/, '');
 
 function parseNum(s) {
   const v = parseFloat(String(s).replace(/,/g, ''));
   return isNaN(v) ? null : v;
 }
 
-async function loApi(path, key) {
-  const res = await fetch('https://developer-lostark.game.onstove.com' + path, {
-    headers: { accept: 'application/json', authorization: 'bearer ' + key },
-  });
-  if (res.status === 401) throw new Error('API 키가 올바르지 않습니다');
+async function loApi(path) {
+  if (!API_PROXY_BASE) throw new Error('API 프록시가 아직 설정되지 않았습니다');
+  const res = await fetch(API_PROXY_BASE + path, { headers: { accept: 'application/json' } });
+  if (res.status === 401) throw new Error('서비스 API 인증을 확인해주세요');
   if (res.status === 429) throw new Error('요청이 너무 많습니다. 잠시 후 다시 시도해주세요');
   if (res.status === 503) throw new Error('로스트아크 API 점검 중입니다');
   if (!res.ok) throw new Error('API 오류 (' + res.status + ')');
@@ -757,15 +752,13 @@ async function loApi(path, key) {
 }
 
 async function doFetch() {
-  const key = apiKeyInput.value.trim();
   const charName = document.getElementById('fetch-char').value.trim();
-  if (!key) { toast('API 키를 입력해주세요'); apiKeyInput.focus(); return; }
   if (!charName) { toast('캐릭터명을 입력해주세요'); return; }
   const btn = document.getElementById('fetch-btn');
   btn.disabled = true;
   btn.textContent = '검색 중...';
   try {
-    const list = await loApi('/characters/' + encodeURIComponent(charName) + '/siblings', key);
+    const list = await loApi('/characters/' + encodeURIComponent(charName) + '/siblings');
     if (!list || !list.length) throw new Error('캐릭터를 찾을 수 없습니다');
     openRosterModal(charName, list);
   } catch (e) {
@@ -819,7 +812,6 @@ document.getElementById('modal-bg').addEventListener('click', e => {
 document.getElementById('modal-ok').addEventListener('click', async () => {
   const modal = document.getElementById('modal-bg');
   const rows = modal.rosterRows || [];
-  const key = apiKeyInput.value.trim();
   const selected = [];
   modal.querySelectorAll('.modal-row').forEach(rowEl => {
     if (rowEl.querySelector('input[type=checkbox]').checked) {
@@ -833,7 +825,7 @@ document.getElementById('modal-ok').addEventListener('click', async () => {
   for (let i = 0; i < selected.length; i++) {
     okBtn.textContent = `전투력 조회 중... ${i + 1}/${selected.length}`;
     try {
-      const prof = await loApi('/armories/characters/' + encodeURIComponent(selected[i].name) + '/profiles', key);
+      const prof = await loApi('/armories/characters/' + encodeURIComponent(selected[i].name) + '/profiles');
       selected[i].cp = prof ? parseNum(prof.CombatPower) : null;
       if (prof) {
         const pIlvl = parseNum(prof.ItemAvgLevel);
