@@ -17,7 +17,7 @@ test('support classes do not add dealer synergy categories', () => {
 
 test('classifies glaivier as critical damage synergy', () => {
   assert.deepEqual(core.synergyKeys({ cls: '창술사', role: 'dealer' }), ['critDamage']);
-  assert.equal(core.SYNERGIES.critDamage.label, '치명타 피해 8%');
+  assert.equal(core.SYNERGIES.critDamage.label, '치명타 피해');
 });
 
 test('uses the latest primary dealer synergy categories', () => {
