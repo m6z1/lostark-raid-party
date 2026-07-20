@@ -589,6 +589,36 @@ function emptySlotHtml(role, n) {
 
 let lastResultText = '';
 
+async function copyResultText() {
+  let copied = false;
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(lastResultText);
+      copied = true;
+    }
+  } catch (e) {}
+
+  if (!copied) {
+    let textarea;
+    try {
+      textarea = document.createElement('textarea');
+      textarea.value = lastResultText;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      copied = document.execCommand('copy');
+    } catch (e) {
+      copied = false;
+    } finally {
+      if (textarea) textarea.remove();
+    }
+  }
+
+  toast(copied ? '복사되었습니다!' : '복사하지 못했습니다. 브라우저의 클립보드 권한을 확인해주세요');
+}
+
 function buildAll(saveToHistory = true) {
   const resultWrap = document.getElementById('results');
   const active = RAIDS.filter(r => state.raids[r.id].enabled);
@@ -672,9 +702,7 @@ function buildAll(saveToHistory = true) {
   if (saveToHistory === true) saveHistory();
 
   const copyBtn = document.getElementById('copy-btn');
-  if (copyBtn) copyBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText(lastResultText).then(() => toast('복사되었습니다!'));
-  });
+  if (copyBtn) copyBtn.addEventListener('click', copyResultText);
 }
 
 function toast(msg) {
