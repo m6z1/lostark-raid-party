@@ -45,3 +45,18 @@ test('8-player split prioritizes distinct synergies while keeping one support pe
   assert.deepEqual(parties.map(p => p.filter(c => c.role === 'support').length), [1, 1]);
   assert.deepEqual(parties.map(p => core.partySynergies(p).length), [3, 3]);
 });
+
+test('recent party history deduplicates snapshots and respects its limit', () => {
+  let history = [];
+  for (let i = 0; i < 7; i++) {
+    history = core.addHistoryEntry(history, { players: [{ name: `player-${i}` }] }, `id-${i}`, i, 5);
+  }
+  assert.equal(history.length, 5);
+  assert.equal(history[0].id, 'id-6');
+  assert.equal(history[4].id, 'id-2');
+
+  history = core.addHistoryEntry(history, { players: [{ name: 'player-4' }] }, 'new-id', 99, 5);
+  assert.equal(history.length, 5);
+  assert.equal(history[0].id, 'new-id');
+  assert.equal(history.filter(item => item.state.players[0].name === 'player-4').length, 1);
+});

@@ -72,5 +72,14 @@
     return best.parties;
   }
 
-  return { CLASSES, SYNERGIES, synergyKeys, partySynergies, splitParties };
+  function addHistoryEntry(history, state, id, createdAt, limit) {
+    const snapshot = JSON.parse(JSON.stringify(state));
+    const serialized = JSON.stringify(snapshot);
+    const entries = (Array.isArray(history) ? history : [])
+      .filter(item => item && JSON.stringify(item.state) !== serialized);
+    entries.unshift({ id, createdAt, state: snapshot });
+    return entries.slice(0, limit || 5);
+  }
+
+  return { CLASSES, SYNERGIES, synergyKeys, partySynergies, splitParties, addHistoryEntry };
 }));
