@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>로아 레이드팟 짜기</title>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-QJDNBM7F1C"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){ dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-QJDNBM7F1C');
+</script>
 <style>
 :root {
   --bg: #0e0f13;
@@ -342,6 +349,10 @@ const HISTORY_LIMIT = 5;
 let state = load();
 let history = loadHistory();
 
+function trackEvent(name, params) {
+  if (typeof window.gtag === 'function') window.gtag('event', name, params || {});
+}
+
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -616,6 +627,7 @@ async function copyResultText() {
     }
   }
 
+  trackEvent('result_copy', { success: copied ? 1 : 0 });
   toast(copied ? '복사되었습니다!' : '복사하지 못했습니다. 브라우저의 클립보드 권한을 확인해주세요');
 }
 
@@ -700,6 +712,11 @@ function buildAll(saveToHistory = true) {
   resultWrap.innerHTML = html;
   lastResultText = textLines.join('\n');
   if (saveToHistory === true) saveHistory();
+  if (saveToHistory === true) trackEvent('party_build', {
+    raid_count: active.length,
+    player_count: state.players.length,
+    character_count: state.players.reduce((count, player) => count + player.chars.length, 0),
+  });
 
   const copyBtn = document.getElementById('copy-btn');
   if (copyBtn) copyBtn.addEventListener('click', copyResultText);
@@ -781,6 +798,7 @@ document.getElementById('history-list').addEventListener('click', e => {
     renderPlayers();
     renderRaidSettings();
     buildAll(false);
+    trackEvent('party_history_load');
     toast('최근 편성을 불러왔습니다');
   } else {
     history = history.filter(entry => entry.id !== item.id);
@@ -874,8 +892,10 @@ async function doFetch() {
   try {
     const list = await loApi('/characters/' + encodeURIComponent(charName) + '/siblings');
     if (!list || !list.length) throw new Error('캐릭터를 찾을 수 없습니다');
+    trackEvent('roster_search', { success: 1, character_count: list.length });
     openRosterModal(charName, list);
   } catch (e) {
+    trackEvent('roster_search', { success: 0 });
     toast(e.message);
   }
   btn.disabled = false;
@@ -964,6 +984,7 @@ document.getElementById('modal-ok').addEventListener('click', async () => {
   });
   save();
   renderPlayers();
+  trackEvent('character_import', { character_count: selected.length });
   okBtn.disabled = false;
   okBtn.textContent = '선택한 캐릭터 추가';
   closeModal();
